@@ -1,4 +1,4 @@
-﻿namespace YOLOv4MLNet.DataStructures
+﻿namespace MyLibrary
 {
     public class YoloV4Result
     {
