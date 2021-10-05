@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using static Microsoft.ML.Transforms.Image.ImageResizingEstimator;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Globalization;
@@ -62,9 +63,16 @@ namespace MyLibrary
             var sw = new Stopwatch();
             sw.Start();
 
+            //defining cancellation token
+            CancellationTokenSource source = new CancellationTokenSource();
+            //CancellationToken token = source.Token;
+
             //getting results
             string[] fileNames = Directory.GetFiles(imageFolder);
+
+            
             object locker = new object();
+            /*
             var ab = new ActionBlock<string>(async name =>
             {                
                 YoloV4Prediction predict;
@@ -82,12 +90,78 @@ namespace MyLibrary
             },
             new ExecutionDataflowBlockOptions
             {
-                MaxDegreeOfParallelism = 4
+                MaxDegreeOfParallelism = 4,
+                CancellationToken=source.Token
             });
-            Parallel.For(0, fileNames.Length, i => ab.Post(fileNames[i]));
+
+            var buf = new BufferBlock<string>();
+            buf.LinkTo(ab);
+
+            Parallel.For(0, fileNames.Length, i => buf.Post(fileNames[i]));
             ab.Complete();
 
             await ab.Completion;
+            */
+            //var batch = new BatchBlock<string>(fileNames.Length);
+            var createBitmaps = new TransformBlock<string, Bitmap>(name =>
+            {
+                var bitmap = new Bitmap(Image.FromFile(name));
+                return bitmap;   
+            },
+            new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = 4,
+                CancellationToken = source.Token
+            });
+
+
+            var predictObjects = new TransformBlock<Bitmap, YoloV4Prediction>(bitmap =>
+            {
+                lock (locker)
+                {
+                    YoloV4Prediction predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
+                    return predict;
+                }
+            },
+            new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = 4,
+                CancellationToken = source.Token
+            });
+
+            var gettingResults = new TransformBlock<YoloV4Prediction, IReadOnlyList<YoloV4Result>>(predict =>
+            {
+                var results = predict.GetResults(classesNames, 0.3f, 0.7f);
+                return results;
+            },
+            new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = 4,
+                CancellationToken = source.Token
+            });
+
+            var printResults = new ActionBlock<IReadOnlyList<YoloV4Result>>(res=>
+            {
+                for (int i = 0; i < res.Count; i++)
+                    printToConsole(res[i]);
+            },
+            new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = 4,
+                CancellationToken = source.Token
+            });
+
+            var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
+
+            //batch.LinkTo(createBitmaps, linkOptions);
+            createBitmaps.LinkTo(predictObjects, linkOptions);
+            predictObjects.LinkTo(gettingResults,linkOptions);
+            gettingResults.LinkTo(printResults, linkOptions);
+
+            Parallel.For(0, fileNames.Length, i => createBitmaps.Post(fileNames[i]));
+            createBitmaps.Complete();
+            await printResults.Completion;
+
             sw.Stop();
             Console.WriteLine($"Done in {sw.ElapsedMilliseconds}ms.");
 

@@ -20,17 +20,17 @@ namespace MyConsole
         const string modelPath = @"C:\Users\archi\OneDrive\Рабочий стол\yolov4.onnx";
 
         //full path to the input directory
-        //const string imageFolder = @"C:\Users\archi\OneDrive\Рабочий стол\lab\401_kereselidze\MyConsole\Assets\Images";
+        const string imageFolder = @"C:\Users\archi\OneDrive\Рабочий стол\lab\401_kereselidze\MyConsole\Assets\Images";
         //string imageFolder;
 
         //
         //const string imageOutputFolder = @"C:\Users\archi\OneDrive\Рабочий стол\lab\401_kereselidze\MyConsole\Assets\Output";
         static async Task Main()
         {
-            Console.WriteLine("Paste full path to the directory with images that you wish to have analized");
-            var imageFolder = Console.ReadLine(); 
-            await ImageAnalizer.imagesAnalizer(imageFolder);
-            
+            //Console.WriteLine("Paste full path to the directory with images that you wish to have analized");
+            //var imageFolder = Console.ReadLine(); 
+
+            await ImageAnalizer.imagesAnalizer(imageFolder);          
         }
     }
 }
