@@ -18,7 +18,8 @@ namespace MyLibrary
 
         static readonly string[] classesNames = new string[] { "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush" };
 
-        public static void printToConsole(YoloV4Result res)
+        
+        /*public static void printToConsole(YoloV4Result res)
         {
             var x1 = res.BBox[0];
             var y1 = res.BBox[1];
@@ -27,7 +28,7 @@ namespace MyLibrary
             Console.WriteLine($"In a rectangle [left,top,right,bottom]:[{x1.ToString("F1", CultureInfo.InvariantCulture)}; " +
                 $"{y1.ToString("F1", CultureInfo.InvariantCulture)}; {x2.ToString("F1", CultureInfo.InvariantCulture)}; " +
                 $"{y2.ToString("F1", CultureInfo.InvariantCulture)}] was/were found (a) {res.Label}.");
-        }
+        }*/
         public static async Task imagesAnalizer(string imageFolder)
         {
             MLContext mlContext = new MLContext();
@@ -72,21 +73,22 @@ namespace MyLibrary
 
             
             object locker = new object();
-            /*
-            var ab = new ActionBlock<string>(async name =>
+/*
+            //var ab = new ActionBlock<string>(async name =>
+            var tb = new TransformBlock<string,IReadOnlyList<YoloV4Result>>(name =>
             {                
                 YoloV4Prediction predict;
+                //Console.Write("{");
+                var bitmap = new Bitmap(Image.FromFile(name));
                 lock (locker)
                 {
-                    var bitmap = new Bitmap(Image.FromFile(name));
+                    //var bitmap = new Bitmap(Image.FromFile(name));
                     predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });  
                 }
                 var results = predict.GetResults(classesNames, 0.3f, 0.7f);
 
-                foreach (var res in results)
-                {                  
-                    printToConsole(res);
-                }     
+                return results;
+
             },
             new ExecutionDataflowBlockOptions
             {
@@ -95,18 +97,38 @@ namespace MyLibrary
             });
 
             var buf = new BufferBlock<string>();
-            buf.LinkTo(ab);
+            buf.LinkTo(tb);
+
+            var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
 
             Parallel.For(0, fileNames.Length, i => buf.Post(fileNames[i]));
-            ab.Complete();
-
-            await ab.Completion;
+            buf.Complete();
+            await buf.Completion;
+            /*
+            var list = tb.Receive(source.Token);
+            //Parallel.For(0, list.Count, i => ab2.Post(list[i]));
+            Parallel.For(0, list.Count, i =>
+             {
+                 var x1 = list[i].BBox[0];
+                 var y1 = list[i].BBox[1];
+                 var x2 = list[i].BBox[2];
+                 var y2 = list[i].BBox[3];
+                 Console.WriteLine($"In a rectangle [left,top,right,bottom]:[{x1.ToString("F1", CultureInfo.InvariantCulture)}; " +
+                    $"{y1.ToString("F1", CultureInfo.InvariantCulture)}; {x2.ToString("F1", CultureInfo.InvariantCulture)}; " +
+                    $"{y2.ToString("F1", CultureInfo.InvariantCulture)}] was/were found (a) {list[i].Label}.");
+             }
+            );
             */
+            //sw.Stop();
+            //Console.WriteLine($"Done in {sw.ElapsedMilliseconds}ms.");
+
             //var batch = new BatchBlock<string>(fileNames.Length);
             var createBitmaps = new TransformBlock<string, Bitmap>(name =>
             {
+                //Console.Write("{");
                 var bitmap = new Bitmap(Image.FromFile(name));
-                return bitmap;   
+                //Console.WriteLine("}");
+                return bitmap;                
             },
             new ExecutionDataflowBlockOptions
             {
@@ -117,21 +139,20 @@ namespace MyLibrary
 
             var predictObjects = new TransformBlock<Bitmap, YoloV4Prediction>(bitmap =>
             {
-                lock (locker)
-                {
-                    YoloV4Prediction predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
-                    return predict;
-                }
+                YoloV4Prediction predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
+                return predict;
             },
             new ExecutionDataflowBlockOptions
             {
-                MaxDegreeOfParallelism = 4,
+                MaxDegreeOfParallelism = 1,
                 CancellationToken = source.Token
             });
 
             var gettingResults = new TransformBlock<YoloV4Prediction, IReadOnlyList<YoloV4Result>>(predict =>
             {
+                //Console.Write("{");
                 var results = predict.GetResults(classesNames, 0.3f, 0.7f);
+                //Console.Write("}");
                 return results;
             },
             new ExecutionDataflowBlockOptions
@@ -140,10 +161,23 @@ namespace MyLibrary
                 CancellationToken = source.Token
             });
 
-            var printResults = new ActionBlock<IReadOnlyList<YoloV4Result>>(res=>
+            var printResults = new ActionBlock<IReadOnlyList<YoloV4Result>>(list=>
             {
-                for (int i = 0; i < res.Count; i++)
-                    printToConsole(res[i]);
+                //Console.Write("{");
+                Parallel.For(0, list.Count, i =>
+                {
+                    //Console.Write("{");
+                    var x1 = list[i].BBox[0];
+                    var y1 = list[i].BBox[1];
+                    var x2 = list[i].BBox[2];
+                    var y2 = list[i].BBox[3];
+                    Console.WriteLine($"In a rectangle [left,top,right,bottom]:[{x1.ToString("F1", CultureInfo.InvariantCulture)}; " +
+                       $"{y1.ToString("F1", CultureInfo.InvariantCulture)}; {x2.ToString("F1", CultureInfo.InvariantCulture)}; " +
+                       $"{y2.ToString("F1", CultureInfo.InvariantCulture)}] was/were found (a) {list[i].Label}.");
+                    //Console.Write("}");
+
+                });
+                //Console.Write("}");
             },
             new ExecutionDataflowBlockOptions
             {
@@ -164,7 +198,7 @@ namespace MyLibrary
 
             sw.Stop();
             Console.WriteLine($"Done in {sw.ElapsedMilliseconds}ms.");
-
+            
 
             //EXAMPLE 
             /*
