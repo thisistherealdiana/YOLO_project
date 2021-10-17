@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Globalization;
+using System.Collections.Concurrent;
 
 namespace MyLibrary
 {
@@ -18,18 +19,7 @@ namespace MyLibrary
 
         static readonly string[] classesNames = new string[] { "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush" };
 
-        
-        /*public static void printToConsole(YoloV4Result res)
-        {
-            var x1 = res.BBox[0];
-            var y1 = res.BBox[1];
-            var x2 = res.BBox[2];
-            var y2 = res.BBox[3];
-            Console.WriteLine($"In a rectangle [left,top,right,bottom]:[{x1.ToString("F1", CultureInfo.InvariantCulture)}; " +
-                $"{y1.ToString("F1", CultureInfo.InvariantCulture)}; {x2.ToString("F1", CultureInfo.InvariantCulture)}; " +
-                $"{y2.ToString("F1", CultureInfo.InvariantCulture)}] was/were found (a) {res.Label}.");
-        }*/
-        public static async Task imagesAnalizer(string imageFolder)
+        public static async Task imagesAnalizer(string imageFolder, CancellationTokenSource source, ConcurrentQueue<IReadOnlyList<YoloV4Result>> queue)
         {
             MLContext mlContext = new MLContext();
             // Define scoring pipeline
@@ -64,9 +54,6 @@ namespace MyLibrary
             var sw = new Stopwatch();
             sw.Start();
 
-            //defining cancellation token
-            CancellationTokenSource source = new CancellationTokenSource();
-            //CancellationToken token = source.Token;
 
             //getting results
             string[] fileNames = Directory.GetFiles(imageFolder);
@@ -125,9 +112,12 @@ namespace MyLibrary
             //var batch = new BatchBlock<string>(fileNames.Length);
             var createBitmaps = new TransformBlock<string, Bitmap>(name =>
             {
-                //Console.Write("{");
+                if (source.IsCancellationRequested)
+                {
+                    source.Cancel();
+                    Console.WriteLine("Cancelling");
+                } 
                 var bitmap = new Bitmap(Image.FromFile(name));
-                //Console.WriteLine("}");
                 return bitmap;                
             },
             new ExecutionDataflowBlockOptions
@@ -148,24 +138,32 @@ namespace MyLibrary
                 CancellationToken = source.Token
             });
 
-            var gettingResults = new TransformBlock<YoloV4Prediction, IReadOnlyList<YoloV4Result>>(predict =>
+            var gettingResults = new ActionBlock<YoloV4Prediction>(predict =>
             {
-                //Console.Write("{");
+                if (source.IsCancellationRequested)
+                {
+                    source.Cancel();
+                    Console.WriteLine("Cancelling");
+                }
                 var results = predict.GetResults(classesNames, 0.3f, 0.7f);
-                //Console.Write("}");
-                return results;
+                queue.Enqueue(results);
             },
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 4,
                 CancellationToken = source.Token
             });
-
+            /*
             var printResults = new ActionBlock<IReadOnlyList<YoloV4Result>>(list=>
             {
                 //Console.Write("{");
                 Parallel.For(0, list.Count, i =>
                 {
+                    if (source.IsCancellationRequested)
+                    {
+                        source.Cancel();
+                        Console.WriteLine("Cancelling");
+                    }
                     //Console.Write("{");
                     var x1 = list[i].BBox[0];
                     var y1 = list[i].BBox[1];
@@ -184,17 +182,18 @@ namespace MyLibrary
                 MaxDegreeOfParallelism = 4,
                 CancellationToken = source.Token
             });
+            */
 
             var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
 
             //batch.LinkTo(createBitmaps, linkOptions);
             createBitmaps.LinkTo(predictObjects, linkOptions);
             predictObjects.LinkTo(gettingResults,linkOptions);
-            gettingResults.LinkTo(printResults, linkOptions);
+            //gettingResults.LinkTo(printResults, linkOptions);
 
             Parallel.For(0, fileNames.Length, i => createBitmaps.Post(fileNames[i]));
             createBitmaps.Complete();
-            await printResults.Completion;
+            await gettingResults.Completion;
 
             sw.Stop();
             Console.WriteLine($"Done in {sw.ElapsedMilliseconds}ms.");
