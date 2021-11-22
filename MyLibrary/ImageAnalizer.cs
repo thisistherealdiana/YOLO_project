@@ -19,7 +19,8 @@ namespace MyLibrary
 
         static readonly string[] classesNames = new string[] { "person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush" };
 
-        public static async Task imagesAnalizer(string imageFolder, CancellationToken token, ConcurrentQueue<IReadOnlyList<YoloV4Result>> queue)
+        public static async Task imagesAnalizer(string imageFolder, CancellationToken token, ConcurrentQueue<Tuple<string,IReadOnlyList<YoloV4Result>>> queue)
+        //public static async Task imagesAnalizer(string imageFolder, CancellationToken token, ConcurrentQueue<IReadOnlyList<YoloV4Result>> queue)
         {
             MLContext mlContext = new MLContext();
             // Define scoring pipeline
@@ -55,14 +56,62 @@ namespace MyLibrary
             //getting results
             string[] fileNames = Directory.GetFiles(imageFolder);
 
-            
+
             object locker = new object();
 
-            var createBitmaps = new TransformBlock<string, Bitmap>(name =>
+            //var createBitmaps = new TransformBlock<string, Bitmap>(name =>
+            //{
+            //    var bitmap = new Bitmap(Image.FromFile(name));
+            //    return bitmap;
+
+            //},
+            //new ExecutionDataflowBlockOptions
+            //{
+            //    MaxDegreeOfParallelism = Environment.ProcessorCount,
+            //    CancellationToken = token
+            //});
+
+
+            //var predictObjects = new TransformBlock<Bitmap, YoloV4Prediction>(bitmap =>
+            //{
+            //    YoloV4Prediction predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
+            //    return predict;
+            //},
+            //new ExecutionDataflowBlockOptions
+            //{
+            //    MaxDegreeOfParallelism = 1,
+            //    CancellationToken = token
+            //});
+
+            //var gettingResults = new ActionBlock<YoloV4Prediction>(predict =>
+            //{
+            //    if (!token.IsCancellationRequested)
+            //    {
+            //        var results = predict.GetResults(classesNames, 0.3f, 0.7f);
+            //        queue.Enqueue(results);
+            //    }
+            //},
+            //new ExecutionDataflowBlockOptions
+            //{
+            //    MaxDegreeOfParallelism = Environment.ProcessorCount,
+            //    CancellationToken = token
+            //});
+
+            //var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
+
+            //createBitmaps.LinkTo(predictObjects, linkOptions);
+            //predictObjects.LinkTo(gettingResults, linkOptions);
+
+            //Parallel.For(0, fileNames.Length, i => createBitmaps.Post(fileNames[i]));
+            //createBitmaps.Complete();
+            //await gettingResults.Completion;
+
+
+            var createBitmaps = new TransformBlock<string, Tuple<Bitmap,string>>(name =>
             {
                 var bitmap = new Bitmap(Image.FromFile(name));
-                return bitmap;
-                                
+                return new Tuple<Bitmap,string>(bitmap,name);
+
             },
             new ExecutionDataflowBlockOptions
             {
@@ -71,10 +120,10 @@ namespace MyLibrary
             });
 
 
-            var predictObjects = new TransformBlock<Bitmap, YoloV4Prediction>(bitmap =>
+            var predictObjects = new TransformBlock<Tuple<Bitmap, string>, Tuple<YoloV4Prediction, string>>(tuple =>
             {
-                YoloV4Prediction predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
-                return predict;
+                YoloV4Prediction predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = tuple.Item1 });
+                return new Tuple<YoloV4Prediction, string> (predict,tuple.Item2);
             },
             new ExecutionDataflowBlockOptions
             {
@@ -82,12 +131,13 @@ namespace MyLibrary
                 CancellationToken = token
             });
 
-            var gettingResults = new ActionBlock<YoloV4Prediction>(predict =>
+            var gettingResults = new ActionBlock<Tuple<YoloV4Prediction, string>>(tuple =>
             {
                 if (!token.IsCancellationRequested)
                 {
-                    var results = predict.GetResults(classesNames, 0.3f, 0.7f);
-                    queue.Enqueue(results);
+                    var results = tuple.Item1.GetResults(classesNames, 0.3f, 0.7f);
+                    var tupleItem = Tuple.Create(tuple.Item2, results);
+                    queue.Enqueue(tupleItem);
                 }
             },
             new ExecutionDataflowBlockOptions
@@ -99,11 +149,32 @@ namespace MyLibrary
             var linkOptions = new DataflowLinkOptions { PropagateCompletion = true };
 
             createBitmaps.LinkTo(predictObjects, linkOptions);
-            predictObjects.LinkTo(gettingResults,linkOptions);
+            predictObjects.LinkTo(gettingResults, linkOptions);
 
             Parallel.For(0, fileNames.Length, i => createBitmaps.Post(fileNames[i]));
             createBitmaps.Complete();
             await gettingResults.Completion;
+
+
+
+            //var gettingResults = new ActionBlock<string>(name =>
+            //{
+            //    if (!token.IsCancellationRequested)
+            //    {
+            //        var bitmap = new Bitmap(Image.FromFile(name));
+            //        YoloV4Prediction predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
+            //        var results = predict.GetResults(classesNames, 0.3f, 0.7f);
+            //        var tuple = new Tuple<string, IReadOnlyList<YoloV4Result>>(name, results);
+            //        queue.Enqueue(tuple);
+            //    }
+            //},
+            //new ExecutionDataflowBlockOptions
+            //{
+            //    MaxDegreeOfParallelism = Environment.ProcessorCount,
+            //    CancellationToken = token
+            //});
+            //Parallel.For(0, fileNames.Length, i => gettingResults.Post(fileNames[i]));
+            //await gettingResults.Completion;
         }
     }
 }
