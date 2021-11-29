@@ -48,12 +48,15 @@ namespace MyWpfApp
         public MainWindow()
         {
             InitializeComponent();
+            select_calalog_button.IsEnabled = true;
+            start_button.IsEnabled = false;
+            cancel_button.IsEnabled = false;
         }
         
         private void SelectButtonClicked(object sender, RoutedEventArgs e)
         {
             select_calalog_button.Background = System.Windows.Media.Brushes.Pink;
-                    
+            select_calalog_button.IsEnabled = false;
             CommonOpenFileDialog dialog = new CommonOpenFileDialog();
             dialog.InitialDirectory = "C:\\Users";
             dialog.IsFolderPicker = true;
@@ -62,6 +65,7 @@ namespace MyWpfApp
                 imageFolder = dialog.FileName;
                 MessageBox.Show("You selected: " + dialog.FileName);
             }
+            start_button.IsEnabled = true;
         }
     
 
@@ -75,6 +79,9 @@ namespace MyWpfApp
         private void StartButtonClicked(object sender, RoutedEventArgs e)
         {
             start_button.Background = System.Windows.Media.Brushes.Pink;
+            select_calalog_button.IsEnabled = false;
+            start_button.IsEnabled = false;
+            cancel_button.IsEnabled = true;
             if (imageFolder == "") return;
             var queue = new ConcurrentQueue<Tuple<string,IReadOnlyList<YoloV4Result>>>();
             var analizeTask = ImageAnalizer.imagesAnalizer(imageFolder, source.Token, queue);
@@ -134,6 +141,9 @@ namespace MyWpfApp
                 }
             },
             TaskCreationOptions.LongRunning);
+            select_calalog_button.IsEnabled = true;
+            start_button.IsEnabled = false;
+            cancel_button.IsEnabled = false;
         }
 
         private void classesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
