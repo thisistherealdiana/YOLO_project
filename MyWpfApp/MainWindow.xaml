@@ -1,0 +1,50 @@
+﻿<Window x:Class="MyWpfApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MyWpfApp"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+
+    <Grid>
+        <Button Name="select_calalog_button" Background="LightBlue" 
+        BorderBrush="Black" BorderThickness="1" 
+        Click="SelectButtonClicked" ClickMode="Press" Margin="10,10,610,364" >
+            Click to Choose a File Catalog
+        </Button>
+        <Button Name="cancel_button" Background="LightBlue" 
+        BorderBrush="Black" BorderThickness="1" 
+        Click="CancelButtonClicked" ClickMode="Press" Margin="400,10,200,364" >
+            Click to Cancel Analizer
+        </Button>
+        <Button Name="start_button" Background="LightBlue" 
+        BorderBrush="Black" BorderThickness="1" 
+        Click="StartButtonClicked" ClickMode="Press" Margin="195,10,405,364" >
+            Click to Start Analizer
+        </Button>
+        
+        <StackPanel Margin="0,70,400,0">
+            <Label x:Name="classesLabel" Content="Object Type Selector"/>
+            <ListBox x:Name="classesList"  Height="338" ItemsSource="{DynamicResource key_ObservableClasses}" SelectionMode="Single" SelectionChanged="classesList_SelectionChanged"/>
+        </StackPanel>
+
+        <StackPanel Margin="400,70,0,0" >
+            <Label x:Name="imageListLabel" Content="Images" />
+            <ListBox Name="croppedImagesList" Height="338" DataContext="{DynamicResource key_FilteredView}" ItemsSource="{Binding}" ItemTemplate="{DynamicResource key_ImageObject}"/>
+
+        </StackPanel>
+    </Grid>
+    
+    <Window.Resources>
+        <local:ObservableClasses x:Key="key_ObservableClasses"/>
+        <local:ObservableImages x:Key="key_ObservableImages"/>
+        <CollectionViewSource x:Key="key_FilteredView" Source="{DynamicResource key_ObservableImages}" Filter="CollectionViewsource_Filter"/>
+        <DataTemplate x:Key="key_ImageObject">
+            <StackPanel>
+                <Image Source="{Binding CroppedImage}" Stretch="Fill" Width="300" Height="300" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding PredictedClass}"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+</Window>

@@ -22,7 +22,7 @@ namespace MyConsole
         const string modelPath = @"C:\Users\archi\OneDrive\Рабочий стол\yolov4.onnx";
 
         //full path to the input directory
-        const string imageFolder = @"C:\Users\archi\OneDrive\Рабочий стол\lab\401_kereselidze\MyConsole\Assets\Images";
+        const string imageFolder = @"C:\Users\archi\OneDrive\Рабочий стол\lab\401_kereselidze\Images";
         //string imageFolder;
 
         //
@@ -43,21 +43,9 @@ namespace MyConsole
                 Console.WriteLine($"Cancelled after {sw.ElapsedMilliseconds}ms.");
                 source.Cancel();
             }
-           
-            /*
-            _ = Task.Factory.StartNew(() => 
-            {
-                Console.WriteLine("Press ENTER if you want the program terminated");
-                while (Console.ReadKey().Key != ConsoleKey.Enter) { }
-                Console.WriteLine("Cancelling...");
-                source.Cancel();
 
-            },
-            TaskCreationOptions.LongRunning);*/
-            
-
-            var queue = new ConcurrentQueue<IReadOnlyList<YoloV4Result>>();
-            IReadOnlyList<YoloV4Result> list;
+            //var queue = new ConcurrentQueue<IReadOnlyList<YoloV4Result>>();
+            var queue = new ConcurrentQueue<Tuple<string, IReadOnlyList<YoloV4Result>>>();
 
 
             var analizeTask = ImageAnalizer.imagesAnalizer(imageFolder, source.Token, queue);
@@ -68,9 +56,9 @@ namespace MyConsole
                 {
                     if (!source.Token.IsCancellationRequested)
                     {
-                        if (queue.TryDequeue(out list))
+                        if (queue.TryDequeue(out Tuple<string, IReadOnlyList<YoloV4Result>> tuple))
                         {
-                            foreach (var value in list)
+                            foreach (var value in tuple.Item2)
                             {
                                 var x1 = value.BBox[0];
                                 var y1 = value.BBox[1];
