@@ -25,7 +25,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MyWpfApp
 {
-    public class ObservableDatabase : ObservableCollection<DatabaseImageObject> { }
+    public class ObservableDatabase : ObservableCollection<ImageObject2> { }
+    public class ImageObject2
+    {
+        public ImageSource CroppedImage { get; set; }
+        public string PredictedClass { get; set; }
+    }
     public class DatabaseImageObject
     {
         public int Id { get; set; }
@@ -36,12 +41,7 @@ namespace MyWpfApp
         public float y2 { get; set; }
         public string DatabaseClass { get; set; }
     }
-    //public class DatabaseClassObject
-    //{
-    //    public int Id { get; set; }
-    //    //public string DatabaseClassName { get; set; }
-    //    public List<DatabaseImageObject> Images { get; set; } = new List<DatabaseImageObject>();
-    //}
+
     class ImagesContext : DbContext
     {
         public DbSet<DatabaseImageObject> Images {get;set;}
@@ -50,24 +50,7 @@ namespace MyWpfApp
         {
             Database.EnsureCreated();
         }
-        protected override void OnConfiguring(DbContextOptionsBuilder o) => o.UseLazyLoadingProxies().UseSqlite("Data Source=C:\\Users\\archi\\OneDrive\\Рабочий стол\\dbfolder\\New_database.db");
-    }
-
-    public class ObservableClasses : ObservableCollection<ClassObject> { }
-    public class ClassObject
-    {
-        public string ClassName { get; set; }
-        public override string ToString()
-        {
-            return ClassName;
-        }
-    }
-    public class ObservableImages : ObservableCollection<ImageObject> { }
-    public class ImageObject
-    {
-        public CroppedBitmap CroppedImage { get; set; }
-        public string Name { get; set; }
-        public string PredictedClass { get; set; }
+        protected override void OnConfiguring(DbContextOptionsBuilder o) => o.UseSqlite("Data Source=C:\\Users\\archi\\OneDrive\\Рабочий стол\\dbfolder\\New_database.db");
     }
 
     public partial class MainWindow : Window
@@ -83,8 +66,25 @@ namespace MyWpfApp
             start_button.IsEnabled = false;
             cancel_button.IsEnabled = false;
 
-            
+            var imagesDatabase = (FindResource("key_ObservableDatabase") as ObservableDatabase);
             db = new ImagesContext();
+            imagesDatabase.Clear();
+            foreach (var item in db.Images)
+            {
+                MemoryStream ms = new MemoryStream(item.DatabaseImage);
+                System.Drawing.Image image = System.Drawing.Image.FromStream(ms);
+                var bmp = new Bitmap(image);
+                IntPtr bmpPt = bmp.GetHbitmap();
+                var bmpSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(bmpPt, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                bmpSource.Freeze();
+                imagesDatabase.Add(new ImageObject2()
+                {
+                    CroppedImage = bmpSource,
+                    PredictedClass = item.DatabaseClass
+                });
+            }
+
+            NewcroppedImagesList.Items.Refresh();
         }
 
         private void SelectButtonClicked(object sender, RoutedEventArgs e)
@@ -122,6 +122,7 @@ namespace MyWpfApp
         private void StartButtonClicked(object sender, RoutedEventArgs e)
         {
             start_button.Background = System.Windows.Media.Brushes.Pink;
+            
             select_calalog_button.IsEnabled = false;
             start_button.IsEnabled = false;
             cancel_button.IsEnabled = true;
@@ -136,9 +137,8 @@ namespace MyWpfApp
                     {
                         if (queue.TryDequeue(out Tuple<string, IReadOnlyList<YoloV4Result>> tuple))
                         {
-                            var images = (FindResource("key_ObservableImages") as ObservableImages);
-                            var classes = (FindResource("key_ObservableClasses") as ObservableClasses);
-                            var imagesView = (FindResource("key_FilteredView") as CollectionViewSource);
+                            var imagesDatabase = (FindResource("key_ObservableDatabase") as ObservableDatabase);
+                            
 
                             foreach (var value in tuple.Item2)
                             {
@@ -166,39 +166,31 @@ namespace MyWpfApp
                                         };
                                         db.Images.Add(databaseImageObject);
                                         db.SaveChanges();
-                                    }
 
-                                    var UriSource = new Uri(tuple.Item1, UriKind.Relative);
-                                    var newImage = new BitmapImage(UriSource);
-                                    newImage.Freeze();
-                                    var image = new CroppedBitmap(newImage, new Int32Rect(x1, y1, x2 - x1, y2 - y1));
-                                    image.Freeze();
-                                    images.Add(new ImageObject()
-                                    {
-                                        CroppedImage = image,
-                                        PredictedClass = value.Label,
-                                        Name = tuple.Item1
-                                    });
+                                        imagesDatabase.Clear();
+                                        foreach (var item in db.Images)
+                                        {
+                                            MemoryStream ms = new MemoryStream(item.DatabaseImage);
+                                            System.Drawing.Image image = System.Drawing.Image.FromStream(ms);
+                                            var bmp = new Bitmap(image);
+                                            IntPtr bmpPt = bmp.GetHbitmap();
+                                            var bmpSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(bmpPt, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+                                            bmpSource.Freeze();
+                                            imagesDatabase.Add(new ImageObject2()
+                                            {
+                                                CroppedImage = bmpSource,
+                                                PredictedClass = value.Label
+                                            });
+                                        }
 
-                                    var itemToUpdate = images.FirstOrDefault(i => i.Name == tuple.Item1);
-                                    if (itemToUpdate != null)
-                                    {
-                                        itemToUpdate.PredictedClass = value.Label;
-                                        imagesView.View.Refresh();
-                                    }
-                                    var classToUpdate = classes.FirstOrDefault(i => i.ClassName == value.Label);
-                                    if (classToUpdate != null)
-                                    {
-                                        classesList.Items.Refresh();
-                                    }
-                                    else
-                                    {
-                                        classes.Add(new ClassObject() { ClassName = value.Label });
+                                        NewcroppedImagesList.Items.Refresh();
                                     }
                                 }));
+                                
                             }
                         }
                         else Thread.Sleep(0);
+
                     }
                 }
             },
@@ -221,40 +213,19 @@ namespace MyWpfApp
             }
             return false;
         }
-        private void classesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            (FindResource("key_FilteredView") as CollectionViewSource).View.Refresh();
-        }
-
-        private void CollectionViewsource_Filter(object sender, FilterEventArgs e)
-        {
-            if (e.Item != null && classesList != null)
-            {
-                if (classesList.SelectedItem is null)
-                {
-                    e.Accepted = true;
-                    return;
-                }
-                var selectedClass = (classesList.SelectedItem as ClassObject).ClassName;
-                var imageClass = (e.Item as ImageObject).PredictedClass;
-                if (selectedClass == imageClass)
-                    e.Accepted = true;
-                else e.Accepted = false;
-            }
-            else
-            {
-                e.Accepted = false;
-            }
-        }
 
         private void ClearDatabaseClicked(object sender, RoutedEventArgs e)
         {
+            var imagesDatabase = (FindResource("key_ObservableDatabase") as ObservableDatabase);
             cleardb_button.Background = System.Windows.Media.Brushes.Pink;
             foreach (var item in db.Images)
             {
                 db.Images.Remove(item);
             }
             db.SaveChanges();
+
+            imagesDatabase.Clear();
+            NewcroppedImagesList.Items.Refresh();
         }
     }
 }

@@ -29,22 +29,28 @@
             Click to Clear the Database
         </Button>
 
-        <StackPanel Margin="0,70,400,0">
+        <!--<StackPanel Margin="0,70,400,0">
             <Label x:Name="classesLabel" Content="Object Type Selector"/>
             <ListBox x:Name="classesList"  Height="338" ItemsSource="{DynamicResource key_ObservableClasses}" SelectionMode="Single" SelectionChanged="classesList_SelectionChanged"/>
+        </StackPanel>-->
+
+        <StackPanel Margin="0,70,0,0" >
+            <Label x:Name="imageListLabel" Content="Images in Database" />
+            <!--<ListBox Name="croppedImagesList" Height="338" DataContext="{DynamicResource key_FilteredView}" ItemsSource="{Binding}" ItemTemplate="{DynamicResource key_ImageObject}"/>-->
+            <ListBox Name="NewcroppedImagesList"  Height="338" ItemsSource="{DynamicResource key_ObservableDatabase}" ItemTemplate="{DynamicResource key_ImageObject}" />
+
         </StackPanel>
 
-        <StackPanel Margin="400,70,0,0" >
-            <Label x:Name="imageListLabel" Content="Images" />
-            <ListBox Name="croppedImagesList" Height="338" DataContext="{DynamicResource key_FilteredView}" ItemsSource="{Binding}" ItemTemplate="{DynamicResource key_ImageObject}"/>
+        <!--<ListBox Name="NewcroppedImagesList"  ItemsSource="{DynamicResource key_ObservableDatabase}" ItemTemplate="{DynamicResource key_ImageObject}"  Margin="405,252,0,0" />-->
+        <!--ItemTemplate="{DynamicResource key2_ImageObject}"-->
 
-        </StackPanel>
     </Grid>
 
     <Window.Resources>
-        <local:ObservableClasses x:Key="key_ObservableClasses"/>
-        <local:ObservableImages x:Key="key_ObservableImages"/>
-        <CollectionViewSource x:Key="key_FilteredView" Source="{DynamicResource key_ObservableImages}" Filter="CollectionViewsource_Filter"/>
+        <!--<local:ObservableClasses x:Key="key_ObservableClasses"/>
+        <local:ObservableImages x:Key="key_ObservableImages"/>-->
+        <local:ObservableDatabase x:Key="key_ObservableDatabase"/>
+        <!--<CollectionViewSource x:Key="key_FilteredView" Source="{DynamicResource key_ObservableImages}" Filter="CollectionViewsource_Filter"/>-->
         <DataTemplate x:Key="key_ImageObject">
             <StackPanel>
                 <Image Source="{Binding CroppedImage}" Stretch="Fill" Width="300" Height="300" HorizontalAlignment="Center" VerticalAlignment="Center"/>
