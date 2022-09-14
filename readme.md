@@ -6,4 +6,4 @@ Model used for image recognition is [https://github.com/onnx/models](https://gi
 
 The user, in turn, is presented with a user interface application for selecting a directory of images and viewing the results. All recognized objects found on the images are available for selection by the user. When a certain object type is selected, the application window displays all images of objects of this type. The list of images is updated as the files are recognized.
 
-The example of program execution can be seen in the folder Example.
+**The example of program execution can be seen in the folder Example.**
