@@ -6,4 +6,6 @@ Model used for image recognition is [https://github.com/onnx/models](https://gi
 
 The user, in turn, is presented with a user interface application for selecting a directory of images and viewing the results. All recognized objects found on the images are available for selection by the user. When a certain object type is selected, the application window displays all images of objects of this type. The list of images is updated as the files are recognized.
 
+The results of the program are being saved to the database (that can be cleared by clicking a button on the user interface), that's why after first-time execution of the program there are preexisting images in the database. The database is managed using SQLite database engine. 
+
 **The example of program execution can be seen in the folder Example.**
