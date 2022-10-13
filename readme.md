@@ -9,3 +9,7 @@ The user, in turn, is presented with a user interface application for selecting 
 The results of the program are being saved to the database (that can be cleared by clicking a button on the user interface), that's why after first-time execution of the program there are preexisting images in the database. The database is managed using SQLite database engine. When database is not empty and after choosing another image folder, the database is going to update with newly found objects.
 
 **The example of program execution can be seen in the folder Example.**
+The video can be seen below
+
+https://user-images.githubusercontent.com/74499545/195565011-e5620e59-d34e-4faa-b452-3a3770ff3537.mp4
+
