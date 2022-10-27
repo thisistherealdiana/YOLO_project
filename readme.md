@@ -1,4 +1,4 @@
-**The project is a console app .NET (Framework или Core) that processes the directory specified by the user (in this repository that is a folder called Images) and displays information about the objects found on the images.**
+**The project is a console app .NET that processes the directory specified by the user (in this repository that is a folder called Images) and displays information about the objects found on the images.**
 
 The program prints a list of objects found in the image as each object is processed. Recognition is performed asynchronously and results are generated as the data in the directory is processed. Multiple file recognition runs at the same time in order to maximize the use of all cores of all processors in the system. To implement multithreading and asynchrony, **TPL Flow** tools are being used.
 
